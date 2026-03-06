@@ -1,0 +1,42 @@
+plugins:
+  # corgistration: K9s + Claude Code diagnostic integration
+  # Hotkey: shift-a on Pod, Deployment, Service
+  # Requires: tmux, kubectl, claude CLI
+  corgi-pod:
+    shortCut: Shift-A
+    description: "Corgi: Diagnose with Claude"
+    scopes:
+      - pods
+    command: bash
+    background: false
+    confirm: false
+    args:
+      - -c
+      - >-
+        corgistration.sh Pod $NAME $NAMESPACE
+
+  corgi-deployment:
+    shortCut: Shift-A
+    description: "Corgi: Diagnose with Claude"
+    scopes:
+      - deployments
+    command: bash
+    background: false
+    confirm: false
+    args:
+      - -c
+      - >-
+        corgistration.sh Deployment $NAME $NAMESPACE
+
+  corgi-service:
+    shortCut: Shift-A
+    description: "Corgi: Diagnose with Claude"
+    scopes:
+      - services
+    command: bash
+    background: false
+    confirm: false
+    args:
+      - -c
+      - >-
+        corgistration.sh Service $NAME $NAMESPACE

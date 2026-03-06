@@ -1,0 +1,36 @@
+=== YAML MANIFEST ===
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-server
+  namespace: default
+spec:
+  containers:
+  - name: api
+    image: myapp:1.2.3
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+status:
+  phase: Running
+  conditions:
+  - type: Ready
+    status: "True"
+
+=== EVENTS ===
+Name:         api-server
+Namespace:    default
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  5m    default-scheduler  Successfully assigned default/api-server
+  Normal  Pulled     5m    kubelet            Container image already present
+  Warning BackOff    1m    kubelet            Back-off restarting failed container api
+
+=== LOGS ===
+2024-01-01T12:00:00Z INFO  Starting application
+2024-01-01T12:00:01Z INFO  Listening on :8080
+2024-01-01T12:00:05Z WARN  Database connection slow (latency=2.3s)
+2024-01-01T12:00:10Z ERROR Failed to connect to database: connection refused
+2024-01-01T12:00:10Z FATAL Unrecoverable error, shutting down
