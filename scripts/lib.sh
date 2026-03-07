@@ -21,6 +21,34 @@ corgi_log() {
   esac
 }
 
+# corgi_banner [kind] [name] [namespace]
+# Prints the ASCII corgi splash to stdout.
+corgi_banner() {
+  local kind="${1:-}"
+  local name="${2:-}"
+  local ns="${3:-}"
+  local target=""
+  [[ -n "$kind" ]] && target="${kind}/${name} (${ns})"
+
+  local _lib_dir
+  _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+  # Title banner
+  printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "===================================================================================================="
+  printf "${CORGI_YELLOW}%*s${CORGI_RESET}\n" 69 "C  O  R  G  I  S  T  R  A  T  I  O  N"
+  printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "===================================================================================================="
+
+  # Corgi art
+  local art="${_lib_dir}/corgi.txt"
+  if [[ -f "$art" ]]; then
+    cat "$art"
+  fi
+
+  printf "${CORGI_DIM}%*s${CORGI_RESET}\n" 72 "☕  https://www.buymeacoffee.com/mark.westerweel"
+  [[ -n "$target" ]] && printf "  ${CORGI_DIM}diagnosing: %s${CORGI_RESET}\n" "$target"
+  printf "\n"
+}
+
 # require_cmd <cmd> [install-hint]
 # Exits 1 if <cmd> is not on PATH, printing an actionable message.
 require_cmd() {
