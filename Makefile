@@ -19,5 +19,5 @@ test: ## Run smoke tests
 
 lint: ## Check scripts with shellcheck (requires shellcheck)
 	@command -v shellcheck >/dev/null || { echo "shellcheck not found — install: https://github.com/koalaman/shellcheck#installing"; exit 1; }
-	@shellcheck scripts/*.sh install.sh uninstall.sh test/smoke.sh
+	@shellcheck scripts/*.sh install.sh uninstall.sh get.sh uninstall-remote.sh test/smoke.sh
 	@echo "shellcheck: all scripts OK"

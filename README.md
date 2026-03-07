@@ -23,30 +23,38 @@ Highlight a Pod, Deployment, or Service in K9s, press **Shift-A**, and get:
 └─────────────────────────────────────┴──────────────────────────────────────┘
 ```
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | bash
+```
+
+> Want to review before running? `curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | less`
+
+The installer will:
+1. Check all prerequisites and print platform-specific install hints for anything missing
+2. Download scripts to `~/.local/bin/`
+3. Merge K9s plugin entries into `~/.config/k9s/plugins.yaml` (existing plugins preserved; `.corgi-bak` backup created)
+
+**Restart K9s** after install to pick up the plugin.
+
+### Install from source
+
+```bash
+git clone https://github.com/MWest2020/Corgistration.git
+cd Corgistration
+make install
+```
+
 ## Prerequisites
 
 | Tool | Minimum version | Install |
 |------|-----------------|---------|
-| `tmux` | 3.0 | OS package manager |
+| `tmux` | 3.0 | `apt/dnf/brew install tmux` |
 | `kubectl` | any | [kubernetes.io/docs/tasks/tools](https://kubernetes.io/docs/tasks/tools/) |
 | `claude` CLI | 2.x | `npm install -g @anthropic-ai/claude-code` |
 | `yq` | 4.x | [github.com/mikefarah/yq](https://github.com/mikefarah/yq#install) |
-| `bat` | any | Optional; enhances YAML highlighting |
-
-## Install
-
-```bash
-git clone <repo-url> corgistration
-cd corgistration
-make install
-```
-
-`install.sh` will:
-1. Copy scripts to `~/.local/bin/`
-2. Merge K9s plugin entries into `~/.config/k9s/plugins.yaml` (existing plugins are preserved; a `.corgi-bak` backup is created)
-3. Print verification steps
-
-**Restart K9s** after install to pick up the plugin.
+| `bat` | any | Optional — enhances YAML highlighting |
 
 ## Usage
 
@@ -68,10 +76,12 @@ Valid K9s shortcut format: `Shift-<letter>`, `Ctrl-<letter>`, or a plain letter 
 ## Uninstall
 
 ```bash
-make uninstall
+curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/uninstall-remote.sh | bash
 ```
 
-This removes scripts from `~/.local/bin/` and corgistration entries from `plugins.yaml`. You will be prompted to restore from the pre-install backup.
+Or if installed from source: `make uninstall`
+
+Removes scripts from `~/.local/bin/` and corgistration entries from `plugins.yaml`.
 
 ## Security notes
 
