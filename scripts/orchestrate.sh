@@ -66,9 +66,19 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 
   apply_session_options
 
-  # Respawn panes with new context — kills current process and restarts cleanly
+  # Ensure all three panes exist — create missing ones
+  PANE_COUNT="$(tmux list-panes -t "${SESSION}:0" | wc -l)"
+  if (( PANE_COUNT < 2 )); then
+    tmux split-window -t "${SESSION}:0.0" -h -l 45% "bash"
+  fi
+  if (( PANE_COUNT < 3 )); then
+    tmux split-window -t "${SESSION}:0.1" -v -l 25% "bash"
+  fi
+
+  # Respawn all panes cleanly with new context
   tmux respawn-pane -k -t "$PANE_YAML"   "${RENDER_CMD}; exec bash"
   tmux respawn-pane -k -t "$PANE_CLAUDE" "${BANNER_CMD} && ${INVOKE_CMD}"
+  tmux respawn-pane -k -t "$PANE_TERM"   "bash"
 
 else
   corgi_log INFO "Creating new tmux session: $SESSION"
