@@ -118,7 +118,14 @@ auto_install() {
   local cmd="$1"
   case "$cmd" in
     tmux)    install_pkg tmux ;;
-    bat)     install_pkg bat ;;
+    bat)
+      case "$OS" in
+        debian)
+          install_pkg bat || true
+          mkdir -p "${HOME}/.local/bin"
+          ln -sf "$(command -v batcat 2>/dev/null || echo /usr/bin/batcat)" "${HOME}/.local/bin/bat" ;;
+        *) install_pkg bat ;;
+      esac ;;
     yq)
       local version="v4.44.2"
       case "$OS" in
@@ -152,10 +159,16 @@ check_prereq() {
   if command -v "$cmd" &>/dev/null; then
     return 0
   fi
-  if [[ "$INSTALL_DEPS" == "true" ]] && [[ "$cmd" != "bat" || "$required" == "true" ]]; then
-    auto_install "$cmd"
-    command -v "$cmd" &>/dev/null || die "Failed to install ${cmd}"
-    return 0
+  if [[ "$INSTALL_DEPS" == "true" ]]; then
+    auto_install "$cmd" || true
+    if command -v "$cmd" &>/dev/null; then
+      return 0
+    elif [[ "$required" != "true" ]]; then
+      info "Optional: '${cmd}' could not be installed — skipping"
+      return 0
+    else
+      die "Failed to install ${cmd}"
+    fi
   fi
   if [[ "$required" == "true" ]]; then
     warn "Required: '$cmd' not found."

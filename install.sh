@@ -100,7 +100,16 @@ install_claude() {
 }
 
 install_tmux() { install_pkg tmux; }
-install_bat()  { install_pkg bat; }
+install_bat() {
+  case "$OS" in
+    # Ubuntu/Debian ships bat as 'batcat' — install and symlink
+    debian)
+      sudo apt-get install -y bat
+      mkdir -p "${HOME}/.local/bin"
+      ln -sf "$(command -v batcat 2>/dev/null || echo /usr/bin/batcat)" "${HOME}/.local/bin/bat" ;;
+    *) install_pkg bat ;;
+  esac
+}
 
 # ── ensure_cmd ────────────────────────────────────────────────────────────────
 # ensure_cmd <cmd> <install_fn> <required|optional>
@@ -111,9 +120,14 @@ ensure_cmd() {
     return 0
   fi
   if [[ "$INSTALL_DEPS" == "true" ]]; then
-    "$install_fn"
-    command -v "$cmd" &>/dev/null || die "Failed to install ${cmd}"
-    ok "  ${cmd} installed"
+    "$install_fn" || true
+    if command -v "$cmd" &>/dev/null; then
+      ok "  ${cmd} installed"
+    elif [[ "$required" == "optional" ]]; then
+      warn "  ${cmd} could not be installed (optional — skipping)"
+    else
+      die "Failed to install ${cmd}"
+    fi
   elif [[ "$required" == "optional" ]]; then
     warn "  ${cmd} not found (optional — skipping)"
   else
