@@ -51,7 +51,11 @@ Highlight a Pod, Deployment, or Service in K9s, press **Shift-A**, and get:
 ## Install
 
 ```bash
+# Check prerequisites only (fails with install hints if anything is missing)
 curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | bash
+
+# Auto-install any missing prerequisites
+curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | bash -s -- --install-deps
 ```
 
 > Want to review before running? `curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | less`
@@ -68,7 +72,14 @@ The installer will:
 ```bash
 git clone https://github.com/MWest2020/Corgistration.git
 cd Corgistration
-make install
+make install          # checks for prerequisites, fails with hints if missing
+make install DEPS=1   # auto-installs any missing prerequisites first
+```
+
+Or directly:
+```bash
+./install.sh                # check prerequisites only
+./install.sh --install-deps # auto-install missing prerequisites
 ```
 
 ## Prerequisites

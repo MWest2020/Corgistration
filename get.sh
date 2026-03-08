@@ -7,6 +7,14 @@
 #   bash <(curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh)
 set -euo pipefail
 
+# ── Flags ─────────────────────────────────────────────────────────────────────
+INSTALL_DEPS=false
+for arg in "$@"; do
+  case "$arg" in
+    --install-deps|-d) INSTALL_DEPS=true ;;
+  esac
+done
+
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO="MWest2020/Corgistration"
 BRANCH="${CORGI_BRANCH:-main}"
@@ -93,22 +101,75 @@ hint_for() {
   esac
 }
 
+# ── Auto-install helpers ──────────────────────────────────────────────────────
+install_pkg() {
+  local pkg="$1"
+  info "Installing ${pkg}…"
+  case "$OS" in
+    debian) sudo apt-get install -y "$pkg" ;;
+    fedora) sudo dnf install -y "$pkg" ;;
+    arch)   sudo pacman -S --noconfirm "$pkg" ;;
+    macos)  brew install "$pkg" ;;
+    *)      die "Cannot auto-install ${pkg} on this OS. Install manually: $(hint_for "$pkg")" ;;
+  esac
+}
+
+auto_install() {
+  local cmd="$1"
+  case "$cmd" in
+    tmux)    install_pkg tmux ;;
+    bat)     install_pkg bat ;;
+    yq)
+      local version="v4.44.2"
+      case "$OS" in
+        debian|fedora|linux)
+          curl -fsSL "https://github.com/mikefarah/yq/releases/download/${version}/yq_linux_amd64" \
+            -o /tmp/yq && chmod +x /tmp/yq && sudo mv /tmp/yq /usr/local/bin/yq ;;
+        arch)  sudo pacman -S --noconfirm go-yq ;;
+        macos) brew install yq ;;
+        *)     die "Cannot auto-install yq. See https://github.com/mikefarah/yq#install" ;;
+      esac ;;
+    kubectl)
+      case "$OS" in
+        debian)
+          curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+            -o /tmp/kubectl && chmod +x /tmp/kubectl && sudo mv /tmp/kubectl /usr/local/bin/kubectl ;;
+        fedora) sudo dnf install -y kubectl ;;
+        arch)   sudo pacman -S --noconfirm kubectl ;;
+        macos)  brew install kubectl ;;
+        *)      die "Cannot auto-install kubectl. See https://kubernetes.io/docs/tasks/tools/" ;;
+      esac ;;
+    claude)
+      command -v npm &>/dev/null || die "npm is required to install claude. Install Node.js: https://nodejs.org"
+      npm install -g @anthropic-ai/claude-code ;;
+  esac
+}
+
 check_prereq() {
   local cmd="$1" required="${2:-true}"
-  if ! command -v "$cmd" &>/dev/null; then
-    if [[ "$required" == "true" ]]; then
-      warn "Required: '$cmd' not found."
-      warn "  Install: $(hint_for "$cmd")"
-      return 1
-    else
-      info "Optional: '$cmd' not found — $(hint_for "$cmd")"
-      return 0
-    fi
+  if command -v "$cmd" &>/dev/null; then
+    return 0
+  fi
+  if [[ "$INSTALL_DEPS" == "true" ]] && [[ "$cmd" != "bat" || "$required" == "true" ]]; then
+    auto_install "$cmd"
+    command -v "$cmd" &>/dev/null || die "Failed to install ${cmd}"
+    return 0
+  fi
+  if [[ "$required" == "true" ]]; then
+    warn "Required: '$cmd' not found."
+    warn "  Install: $(hint_for "$cmd")"
+    return 1
+  else
+    info "Optional: '$cmd' not found — $(hint_for "$cmd")"
+    return 0
   fi
 }
 
 # ── Prereq checks ─────────────────────────────────────────────────────────────
-info "Checking prerequisites..."
+info "Checking prerequisites…"
+if [[ "$INSTALL_DEPS" == "true" ]]; then
+  info "(--install-deps set: will auto-install any missing tools)"
+fi
 MISSING=0
 check_prereq tmux    required || MISSING=$((MISSING+1))
 check_prereq kubectl required || MISSING=$((MISSING+1))
@@ -116,7 +177,7 @@ check_prereq claude  required || MISSING=$((MISSING+1))
 check_prereq yq      required || MISSING=$((MISSING+1))
 check_prereq bat     optional
 
-(( MISSING > 0 )) && die "${MISSING} required prerequisite(s) missing. Install them and re-run."
+(( MISSING > 0 )) && die "${MISSING} required prerequisite(s) missing. Re-run with --install-deps to auto-install."
 
 # ── Download scripts ──────────────────────────────────────────────────────────
 info "Installing scripts to ${INSTALL_DIR}/"

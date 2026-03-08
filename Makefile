@@ -8,8 +8,8 @@ build: ## Build the corgi binary to ./bin/corgi
 	@go build -ldflags "-X main.version=$$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$$(git rev-parse --short HEAD 2>/dev/null || echo none)" -o bin/corgi ./cmd/corgi/
 	@echo "  built → bin/corgi"
 
-install: ## Install corgistration scripts and K9s plugin entries
-	@bash install.sh
+install: ## Install corgistration (add DEPS=1 to auto-install prerequisites)
+	@bash install.sh $(if $(DEPS),--install-deps,)
 	@echo ""
 	@echo "Verification steps:"
 	@echo "  1. Check scripts are present: ls ~/.local/bin/corgistration.sh"
