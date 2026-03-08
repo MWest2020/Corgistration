@@ -1,6 +1,31 @@
+```
+:::::::::::::::::::::---::::::::-:::::::::::::::-==========:.....::::::::::::::.....::::::::::::::::
+:::::::::::::::::::::::::::::::::::::::::::::======++===--==-::.:..:::::::::::::::::..::::::::::::::
+:::::::::::::::::::---::::::::::::::::-::-======++==++++=====-::::.:=-..........::::::::::::::::::::
+:::::::::::::::::-----::::::::::::-===-====-==++==+*++=======+=::::--==................:::...:.:::::
+:::::::::::::::::-----::::::-+*#****++++=--+=====**=--=++*+==*++:.:-+**=:...........................
+::::::::::::::::::---::-+*#%%##**#*+*#*+=======+**=*%@@@@%*++**+-...=#%@@=::::::....................
+:::::::::::::::::-=*%%%%%%%%%%###**+=+*+=-==+++**+%@@@@@*#%@%%++=:...#@*#*:::::::::.................
+:::::::::::::::--%%%%###*######%%%#%*++*++*++**##*+=+*#%%%##%#+++=:...#%@=:-::::::::::::::..........
+.::::::::::::::---%%%%%%%%#*+=*%@@%++*+*+#*****##*++####%%%%#*++-:.:::.-*----::::::::::::::::::::...
+..:::::::::::::::-:-%%%%#%%#+++++*%****######*+=+*****##%%#**+=::....::...:--::::::::::::::::::::...
+::::::::::::::::::::::-%@@%*++++=#**####%**++====+**#***+***+-:.....:..::::.::::::::::::::::::::::::
+=======-----------:::::::*##**%#########*+++=+++++---:::::--:::...::::+%%@%*##=:::::::::::::::::::::
+++++====================-:-:--=*#*##%%#*++==++++=--:..::--::::::-----%%%@@@@@@@%::::::::::::::::::::
++++++++++++++++++++++++-.-:::::=#####+===+++=+++---::=*----::-----===+%%@@@@@@@#---------:::::::::::
+++++++++++++++++++++++-....:::-=*#*+=-==+++++++*---::=@*--------=====+#%@@@@@@#==================+==
++++++++++++++++++****-::..::::--*#+-====+++++++*=====+*##+------=====+#%%%@@%--===++++===++++++++===
++++++++++++++*******-.:::::::---==+=-*++++=+++++===+++++==*#====++++*###%%##==+++++**+++++++++++++++
+++++++++++*********-::::::::::::+++=--==++++***=====++++==+++#%%%%###%%@@%#**+*********************+
+```
+
+<div align="center">
+
 # corgistration
 
-K9s + Claude Code + tmux diagnostic integration.
+**K9s + Claude Code + tmux — Kubernetes diagnostics with AI, in your terminal**
+
+</div>
 
 Highlight a Pod, Deployment, or Service in K9s, press **Shift-A**, and get:
 - **Left pane**: syntax-highlighted YAML manifest, colorized logs, and events
@@ -54,9 +79,12 @@ make install
 | `kubectl` | any | [kubernetes.io/docs/tasks/tools](https://kubernetes.io/docs/tasks/tools/) |
 | `claude` CLI | 2.x | `npm install -g @anthropic-ai/claude-code` |
 | `yq` | 4.x | [github.com/mikefarah/yq](https://github.com/mikefarah/yq#install) |
+| `go` | 1.21+ | [go.dev/dl](https://go.dev/dl/) — required to build the `corgi` binary |
 | `bat` | any | Optional — enhances YAML highlighting |
 
 ## Usage
+
+### Via K9s hotkey
 
 1. Open K9s and navigate to any Pod, Deployment, or Service
 2. Highlight the resource and press **Shift-A**
@@ -66,6 +94,30 @@ make install
 4. Type follow-up questions or ask Claude to generate a fix in the right pane
 
 The tmux session persists. Triggering the hotkey again on a different resource refreshes both panes.
+
+### Via `corgi` CLI
+
+The `corgi` binary provides the same workflow without K9s.
+
+**Interactive picker** (requires a TTY and valid kubeconfig):
+```bash
+corgi
+```
+Launches a TUI listing all Pods, Deployments, and Services. Use `↑/↓` or `j/k` to navigate, `/` to filter, `Enter` to diagnose.
+
+**Direct mode**:
+```bash
+corgi Pod api-server default
+corgi Deployment frontend staging
+corgi Service postgres default
+```
+
+**Flags**:
+```
+-n, --namespace   filter picker to a specific namespace
+    --context     override kubeconfig context
+-v, --version     print version and exit
+```
 
 ## Customizing the hotkey
 
