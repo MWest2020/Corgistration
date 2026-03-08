@@ -18,12 +18,18 @@ require_cmd() {
 
 # ── Prerequisite check ───────────────────────────────────────────────────────
 require_cmd yq  "Install yq: https://github.com/mikefarah/yq#install"
+require_cmd go  "Install Go: https://go.dev/dl/"
+
+# ── Build and install corgi binary ───────────────────────────────────────────
+info "Building corgi binary…"
+(cd "${SCRIPT_DIR}" && go build -ldflags "-X main.version=$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo none)" -o "${INSTALL_DIR}/corgi" ./cmd/corgi/)
+info "  installed corgi → ${INSTALL_DIR}/corgi"
 
 # ── Install scripts ──────────────────────────────────────────────────────────
 info "Installing scripts to ${INSTALL_DIR}/"
 mkdir -p "${INSTALL_DIR}"
 
-for script in corgistration.sh collect.sh render.sh orchestrate.sh claude-invoke.sh lib.sh; do
+for script in corgistration.sh collect.sh render.sh orchestrate.sh claude-invoke.sh lib.sh corgi.txt; do
   src="${SCRIPT_DIR}/scripts/${script}"
   [[ -f "$src" ]] || die "Missing source script: ${src}"
   cp "$src" "${INSTALL_DIR}/${script}"

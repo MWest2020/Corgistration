@@ -9,7 +9,7 @@ info() { printf '\033[0;36m[uninstall]\033[0m %s\n' "$*"; }
 warn() { printf '\033[0;33m[uninstall] WARN:\033[0m %s\n' "$*" >&2; }
 
 # ── Remove scripts ───────────────────────────────────────────────────────────
-for script in corgistration.sh collect.sh render.sh orchestrate.sh claude-invoke.sh lib.sh; do
+for script in corgistration.sh collect.sh render.sh orchestrate.sh claude-invoke.sh lib.sh corgi.txt; do
   target="${INSTALL_DIR}/${script}"
   if [[ -f "$target" ]]; then
     rm "$target"

@@ -49,10 +49,13 @@ else
   # Split horizontally: left=55%, right=45%
   tmux split-window -t "${SESSION}:0" -h -l 45%
 
+  # Show ASCII corgi banner in right pane before Claude loads
+  tmux send-keys -t "$RIGHT_PANE" "source ${Q_SCRIPT_DIR}/lib.sh && corgi_banner ${Q_KIND} ${Q_NAME} ${Q_NS}" Enter
+
   # Launch renderer in left pane (pane 0)
   tmux send-keys -t "$LEFT_PANE"  "${RENDER_CMD}" Enter
 
-  # Launch claude invoker in right pane (pane 1)
+  # Launch claude invoker in right pane (pane 1) — banner already visible, Claude follows
   tmux send-keys -t "$RIGHT_PANE" "${INVOKE_CMD}" Enter
 fi
 
