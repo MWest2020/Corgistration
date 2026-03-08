@@ -42,15 +42,20 @@ apply_session_options() {
   tmux set-option -t "$SESSION" status-style "bg=colour235,fg=colour250"
   tmux set-option -t "$SESSION" status-left "#[fg=colour6,bold] corgistration #[fg=colour8]│ "
   tmux set-option -t "$SESSION" status-right \
-    "#[fg=colour3]Ctrl-b o#[fg=colour8]=next pane  #[fg=colour3]Ctrl-b g#[fg=colour8]=picker  #[fg=colour3]Shift+drag#[fg=colour8]=copy  #[fg=colour3]Ctrl-b d#[fg=colour8]=detach "
+    "#[fg=colour3]Ctrl-b o#[fg=colour8]=pane  #[fg=colour3]Ctrl-b r#[fg=colour8]=picker  #[fg=colour3]Ctrl-b q#[fg=colour8]=quit  #[fg=colour3]Shift+drag#[fg=colour8]=copy  #[fg=colour3]Ctrl-b d#[fg=colour8]=detach "
   tmux set-option -t "$SESSION" status-right-length 100
 
   # Ctrl-b o already cycles panes — don't bind arrow keys (they interfere with Claude)
 
-  # Ctrl-b g → open picker as a popup (tmux 3.2+).
-  # Popup closes automatically when corgi exits; session panes are already refreshed.
   CORGI_BIN="${HOME}/.local/bin/corgi"
-  tmux bind-key -T prefix g display-popup -E -w 90% -h 90% "${CORGI_BIN}"
+
+  # Ctrl-b r → return to picker: runs corgi in a full-screen new window.
+  # orchestrate.sh switches client back to window 0 after selection.
+  # The picker window closes automatically when corgi exits.
+  tmux bind-key -T prefix r new-window -n "picker" "${CORGI_BIN}"
+
+  # Ctrl-b q → exit: kill session and return to terminal
+  tmux bind-key -T prefix q kill-session
 }
 
 # ── Session management ────────────────────────────────────────────────────────
