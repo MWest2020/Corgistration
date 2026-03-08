@@ -60,14 +60,9 @@ apply_session_options() {
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   corgi_log INFO "Refreshing existing tmux session: $SESSION"
 
-  # Close any stray extra windows (e.g. leftover picker)
-  while tmux list-windows -t "$SESSION" | grep -qE "^[1-9]:"; do
-    tmux kill-window -t "${SESSION}:1" 2>/dev/null || break
-  done
-
   apply_session_options
 
-  # Ensure all three panes exist — create missing ones
+  # Ensure all three panes exist in window 0 — create if missing
   PANE_COUNT="$(tmux list-panes -t "${SESSION}:0" | wc -l)"
   if (( PANE_COUNT < 2 )); then
     tmux split-window -t "${SESSION}:0.0" -h -l 45% "bash"
@@ -76,7 +71,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
     tmux split-window -t "${SESSION}:0.1" -v -l 25% "bash"
   fi
 
-  # Respawn all panes cleanly with new context
+  # Respawn panes — YAML stays (remain-on-exit), others close cleanly
   tmux set-option -p -t "$PANE_YAML"   remain-on-exit on
   tmux set-option -p -t "$PANE_CLAUDE" remain-on-exit off
   tmux set-option -p -t "$PANE_TERM"   remain-on-exit off
@@ -87,37 +82,30 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 else
   corgi_log INFO "Creating new tmux session: $SESSION"
 
-  # ── Layout:
-  #   left (55%)       right top (75% of right = ~34% total)
-  #                    right bottom (25% of right = ~11% total)
-
-  # Window 0, pane 0: YAML viewer (left) — stays visible after render finishes
+  # Window 0, pane 0: YAML viewer (left)
   tmux new-session -d -s "$SESSION" -n "corgi" -x 220 -y 50 \
     "${RENDER_CMD}"
 
   apply_session_options
 
-  # remain-on-exit for pane 0 only (YAML viewer stays after render exits)
-  tmux set-option -t "${SESSION}:0" remain-on-exit on
+  # YAML pane stays visible after render exits; other panes close normally
+  tmux set-option -p -t "${SESSION}:0.0" remain-on-exit on
 
-  # Split right: pane 1 = Claude
+  # Pane 1: Claude (right top)
   tmux split-window -t "${SESSION}:0.0" -h -l 45% \
     "${BANNER_CMD} && ${INVOKE_CMD}"
 
-  # Split pane 1 vertically: pane 2 = terminal (bottom right, 25% height)
+  # Pane 2: terminal shell (right bottom, 25% height)
   tmux split-window -t "${SESSION}:0.1" -v -l 25% \
     "bash"
-
-  # remain-on-exit only applies to pane 0 — turn it off for panes 1 and 2
-  tmux set-option -p -t "${SESSION}:0.1" remain-on-exit off
-  tmux set-option -p -t "${SESSION}:0.2" remain-on-exit off
 fi
 
-# ── Focus Claude pane ─────────────────────────────────────────────────────────
-tmux select-pane -t "$PANE_CLAUDE"
+# ── Always land on window 0, Claude pane — even when called from picker window
+tmux select-window -t "${SESSION}:0"
+tmux select-pane   -t "$PANE_CLAUDE"
 
 if [[ -n "${TMUX:-}" ]]; then
-  tmux switch-client -t "$SESSION"
+  tmux switch-client -t "${SESSION}:0"
 else
-  tmux attach-session -t "$SESSION"
+  tmux attach-session -t "${SESSION}:0"
 fi
