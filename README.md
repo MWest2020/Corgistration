@@ -88,7 +88,7 @@ Or directly:
 |------|-----------------|---------|
 | `tmux` | 3.0 | `apt/dnf/brew install tmux` |
 | `kubectl` | any | [kubernetes.io/docs/tasks/tools](https://kubernetes.io/docs/tasks/tools/) |
-| `claude` CLI | 2.x | `npm install -g @anthropic-ai/claude-code` |
+| `node` + `claude` CLI | Node 18+ | Install Node.js from [nodejs.org](https://nodejs.org), then `npm install -g @anthropic-ai/claude-code` and `claude login` — **must be set up manually** |
 | `yq` | 4.x | [github.com/mikefarah/yq](https://github.com/mikefarah/yq#install) |
 | `go` | 1.21+ | [go.dev/dl](https://go.dev/dl/) — required to build the `corgi` binary |
 | `bat` | any | Optional — enhances YAML highlighting |

@@ -93,9 +93,10 @@ install_yq() {
 }
 
 install_claude() {
-  info "Installing claude CLI via npm…"
-  command -v npm &>/dev/null || die "npm is required to install claude. Install Node.js first: https://nodejs.org"
-  npm install -g @anthropic-ai/claude-code
+  die "claude CLI must be installed manually — it requires a Node.js runtime and an Anthropic account.
+  Install Node.js:  https://nodejs.org
+  Then run:         npm install -g @anthropic-ai/claude-code
+  Sign in:          claude login"
 }
 
 install_tmux() { install_pkg tmux; }

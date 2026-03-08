@@ -140,8 +140,10 @@ auto_install() {
         *)      die "Cannot auto-install kubectl. See https://kubernetes.io/docs/tasks/tools/" ;;
       esac ;;
     claude)
-      command -v npm &>/dev/null || die "npm is required to install claude. Install Node.js: https://nodejs.org"
-      npm install -g @anthropic-ai/claude-code ;;
+      die "claude CLI must be installed manually — it requires Node.js and an Anthropic account.
+  Install Node.js:  https://nodejs.org
+  Then run:         npm install -g @anthropic-ai/claude-code
+  Sign in:          claude login" ;;
   esac
 }
 
