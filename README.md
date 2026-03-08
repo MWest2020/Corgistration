@@ -162,7 +162,7 @@ CORGI_CONTEXT_LINES=500
 
 | Tool | Min version | Auto-install |
 |------|-------------|--------------|
-| `tmux` | 3.0 | Yes (`--install-deps`) |
+| `tmux` | 3.2+ | Yes (`--install-deps`) — 3.2+ required for popup picker |
 | `kubectl` | any | Yes |
 | `node` + `claude` CLI | Node 18+ | **No — manual setup required** |
 | `yq` | 4.x | Yes |
