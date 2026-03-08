@@ -1,0 +1,17 @@
+# corgistration configuration
+# Location: ~/.config/corgistration/config
+#
+# Destructive command policy — controls how Claude handles dangerous actions.
+#
+#   ask   (default) Claude warns with ⚠️ DESTRUCTIVE ACTION, explains blast radius,
+#                   and asks you to confirm before proceeding.
+#   allow           Claude still marks destructive commands with ⚠️ WARNING but
+#                   does not ask for confirmation.
+#   deny            Claude describes what the destructive action would do but
+#                   refuses to write the command — you run it manually.
+#
+CORGI_DESTRUCTIVE="ask"
+
+# Maximum context lines sent to Claude before truncation kicks in.
+# Lower this if Claude responses feel slow or hit token limits.
+CORGI_CONTEXT_LINES=500

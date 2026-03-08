@@ -163,6 +163,17 @@ for script in corgistration.sh collect.sh render.sh orchestrate.sh claude-invoke
   info "  installed ${script}"
 done
 
+# ── User config (never overwrite existing) ───────────────────────────────────
+CORGI_CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/corgistration"
+CORGI_CONFIG="${CORGI_CONFIG_DIR}/config"
+mkdir -p "${CORGI_CONFIG_DIR}"
+if [[ ! -f "${CORGI_CONFIG}" ]]; then
+  cp "${SCRIPT_DIR}/config/config.default" "${CORGI_CONFIG}"
+  info "Created default config → ${CORGI_CONFIG}"
+else
+  info "Config already exists — skipping (${CORGI_CONFIG})"
+fi
+
 # ── K9s plugin merge ─────────────────────────────────────────────────────────
 PLUGIN_SRC="${SCRIPT_DIR}/k9s/plugins.yaml"
 mkdir -p "$(dirname "${K9S_PLUGINS}")"
