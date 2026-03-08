@@ -22,7 +22,7 @@ corgi_log() {
 }
 
 # corgi_banner [kind] [name] [namespace]
-# Prints the ASCII corgi splash to stdout.
+# Prints the ASCII corgi splash to stdout, scaled to terminal width.
 corgi_banner() {
   local kind="${1:-}"
   local name="${2:-}"
@@ -33,18 +33,36 @@ corgi_banner() {
   local _lib_dir
   _lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-  # Title banner
-  printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "===================================================================================================="
-  printf "${CORGI_YELLOW}%*s${CORGI_RESET}\n" 69 "C  O  R  G  I  S  T  R  A  T  I  O  N"
-  printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "===================================================================================================="
+  # Detect terminal width; fall back to 80
+  local cols
+  cols="$(tput cols 2>/dev/null || echo 80)"
 
-  # Corgi art
-  local art="${_lib_dir}/corgi.txt"
-  if [[ -f "$art" ]]; then
-    cat "$art"
+  local sep
+  sep="$(printf '%*s' "$cols" '' | tr ' ' '=')"
+
+  # Compact banner for narrow terminals (< 60 cols)
+  if (( cols < 60 )); then
+    printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "$sep"
+    printf "${CORGI_YELLOW}  CORGISTRATION${CORGI_RESET}\n"
+    printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "$sep"
+    [[ -n "$target" ]] && printf "  ${CORGI_DIM}%s${CORGI_RESET}\n" "$target"
+    printf "\n"
+    return
   fi
 
-  printf "${CORGI_DIM}%*s${CORGI_RESET}\n" 72 "☕  https://www.buymeacoffee.com/mark.westerweel"
+  printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "$sep"
+  printf "${CORGI_YELLOW}%*s${CORGI_RESET}\n" $(( (cols + 38) / 2 )) "C  O  R  G  I  S  T  R  A  T  I  O  N"
+  printf "${CORGI_BOLD_CYAN}%s${CORGI_RESET}\n" "$sep"
+
+  # Corgi art — clip lines to terminal width so they never wrap
+  local art="${_lib_dir}/corgi.txt"
+  if [[ -f "$art" ]]; then
+    while IFS= read -r line; do
+      printf '%.*s\n' "$cols" "$line"
+    done < "$art"
+  fi
+
+  printf "${CORGI_DIM}%*s${CORGI_RESET}\n" $(( cols - 1 )) "☕  https://www.buymeacoffee.com/mark.westerweel"
   [[ -n "$target" ]] && printf "  ${CORGI_DIM}diagnosing: %s${CORGI_RESET}\n" "$target"
   printf "\n"
 }

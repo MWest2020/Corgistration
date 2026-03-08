@@ -85,14 +85,18 @@ Do not repeat the manifest back. Ask clarifying questions if needed.
 
 ${DESTRUCTIVE_INSTRUCTION}"
 
-# ── Initial user message ──────────────────────────────────────────────────────
-CONTEXT_CONTENT="$(cat "$CONTEXT_FILE")"
+# ── Initial user message — reference file, not content ───────────────────────
+# Passing large context as a shell argument hits OS ARG_MAX limits.
+# Claude Code has native file-reading capability; pass the path instead.
 INITIAL_PROMPT="Diagnose: ${KIND}/${NAME} in namespace ${NAMESPACE}
 ${TRUNCATION_NOTICE}
 
-${CONTEXT_CONTENT}
+Context file (YAML manifest, events, logs): ${CONTEXT_FILE}
 
-Respond with: (1) status summary in one line, (2) most likely issue, (3) recommended fix or next step."
+Please read that file, then respond with:
+(1) status summary in one line
+(2) most likely issue
+(3) recommended fix or next step — read-only kubectl commands only"
 
 # ── Launch Claude in interactive mode ─────────────────────────────────────────
 exec claude \

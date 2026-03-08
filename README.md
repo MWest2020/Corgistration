@@ -23,147 +23,193 @@
 
 # corgistration
 
-**K9s + Claude Code + tmux — Kubernetes diagnostics with AI, in your terminal**
+**Kubernetes diagnostics with AI — K9s + Claude Code + tmux, in your terminal**
+
+`v0.0.1-beta`
 
 </div>
 
-Highlight a Pod, Deployment, or Service in K9s, press **Shift-A**, and get:
-- **Left pane**: syntax-highlighted YAML manifest, colorized logs, and events
-- **Right pane**: Claude Code pre-loaded with that context, ready to diagnose and suggest fixes
+Select a Pod, Deployment, StatefulSet, or Service — get an AI diagnosis in a split terminal with your YAML, Claude, and a live shell side by side.
 
 ```
-┌─────────────────────────────────────┬──────────────────────────────────────┐
-│  === YAML MANIFEST ===              │  Diagnosing Pod/api-server...        │
-│  apiVersion: v1                     │                                      │
-│  kind: Pod                          │  ROOT CAUSE: The container is        │
-│  ...                                │  crash-looping because it cannot     │
-│  === EVENTS ===                     │  reach the database. The LOGS show   │
-│  ! Warning BackOff  kubelet         │  "connection refused" on port 5432.  │
-│    Normal  Pulled   kubelet         │                                      │
-│  === LOGS ===                       │  FIX:                                │
-│  INFO  Starting application         │    kubectl get svc postgres -n default│
-│  WARN  Database slow (latency=2.3s) │  Verify the service exists and its   │
-│  ERROR Failed to connect: refused   │  ClusterIP is reachable from this    │
-│  FATAL Unrecoverable error          │  pod's namespace...                  │
-└─────────────────────────────────────┴──────────────────────────────────────┘
+┌──────────────────────┬──────────────────────┐
+│  === YAML MANIFEST ===│  (1) Running 2/2     │
+│  apiVersion: apps/v1 │                      │
+│  kind: Deployment    │  Issue: OOMKilled —  │
+│  ...                 │  memory limit too low │
+│  === EVENTS ===      │                      │
+│  ! Warning OOMKilled │  Run in terminal:    │
+│  === LOGS ===        │  kubectl top pod ... │
+│  FATAL out of memory ├──────────────────────┤
+│                      │  $ kubectl ...       │
+└──────────────────────┴──────────────────────┘
 ```
+
+---
 
 ## Install
 
-```bash
-# Check prerequisites only (fails with install hints if anything is missing)
-curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | bash
+**Prerequisites — must be set up manually before install:**
 
-# Auto-install any missing prerequisites
+| Tool | Notes |
+|------|-------|
+| `node` + `claude` CLI | Install [Node.js](https://nodejs.org), then `npm install -g @anthropic-ai/claude-code` and `claude login` |
+| `kubectl` | [kubernetes.io/docs/tasks/tools](https://kubernetes.io/docs/tasks/tools/) |
+
+**Then install corgistration:**
+
+```bash
+# Remote (auto-installs tmux, yq, go, bat if missing)
 curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | bash -s -- --install-deps
+
+# From source
+git clone https://github.com/MWest2020/Corgistration.git
+cd Corgistration
+make install DEPS=1
 ```
 
-> Want to review before running? `curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/get.sh | less`
-
-The installer will:
-1. Check all prerequisites and print platform-specific install hints for anything missing
-2. Download scripts to `~/.local/bin/`
-3. Merge K9s plugin entries into `~/.config/k9s/plugins.yaml` (existing plugins preserved; `.corgi-bak` backup created)
+> Review before running: `curl -fsSL .../get.sh | less`
 
 **Restart K9s** after install to pick up the plugin.
 
-### Install from source
-
-```bash
-git clone https://github.com/MWest2020/Corgistration.git
-cd Corgistration
-make install          # checks for prerequisites, fails with hints if missing
-make install DEPS=1   # auto-installs any missing prerequisites first
-```
-
-Or directly:
-```bash
-./install.sh                # check prerequisites only
-./install.sh --install-deps # auto-install missing prerequisites
-```
-
-## Prerequisites
-
-| Tool | Minimum version | Install |
-|------|-----------------|---------|
-| `tmux` | 3.0 | `apt/dnf/brew install tmux` |
-| `kubectl` | any | [kubernetes.io/docs/tasks/tools](https://kubernetes.io/docs/tasks/tools/) |
-| `node` + `claude` CLI | Node 18+ | Install Node.js from [nodejs.org](https://nodejs.org), then `npm install -g @anthropic-ai/claude-code` and `claude login` — **must be set up manually** |
-| `yq` | 4.x | [github.com/mikefarah/yq](https://github.com/mikefarah/yq#install) |
-| `go` | 1.21+ | [go.dev/dl](https://go.dev/dl/) — required to build the `corgi` binary |
-| `bat` | any | Optional — enhances YAML highlighting |
+---
 
 ## Usage
 
-### Via K9s hotkey
+### Interactive TUI picker (recommended)
 
-1. Open K9s and navigate to any Pod, Deployment, or Service
-2. Highlight the resource and press **Shift-A**
-3. A tmux session named `corgistration` opens with:
-   - Left pane: colored context (YAML + events + logs)
-   - Right pane: Claude Code with the context pre-loaded
-4. Type follow-up questions or ask Claude to generate a fix in the right pane
-
-The tmux session persists. Triggering the hotkey again on a different resource refreshes both panes.
-
-### Via `corgi` CLI
-
-The `corgi` binary provides the same workflow without K9s.
-
-**Interactive picker** (requires a TTY and valid kubeconfig):
 ```bash
 corgi
 ```
-Launches a TUI listing all Pods, Deployments, and Services. Use `↑/↓` or `j/k` to navigate, `/` to filter, `Enter` to diagnose.
 
-**Direct mode**:
+Launches a full-screen picker grouped by resource type:
+
+```
+  ── DEPLOYMENTS
+► Deployment  api-server    argocd   2/2 ready
+  Deployment  redis         default  1/1 ready
+
+  ── STATEFULSETS
+  StatefulSet postgres      default  1/1 ready
+
+  ── PODS
+  ...
+```
+
+`↑/↓` or `j/k` to navigate · `/` to filter · `Enter` to diagnose · `q` to quit
+
+### Direct mode
+
 ```bash
-corgi Pod api-server default
-corgi Deployment frontend staging
-corgi Service postgres default
+corgi Pod      <name> <namespace>
+corgi Deployment <name> <namespace>
+corgi StatefulSet <name> <namespace>
+corgi Service  <name> <namespace>
 ```
 
-**Flags**:
+### Via K9s hotkey
+
+Navigate to any resource in K9s and press **Shift-A**.
+
+---
+
+## The diagnostic session
+
+Once a resource is selected, a tmux session named `corgistration` opens with three panes:
+
+| Pane | Content |
+|------|---------|
+| **Left** | Syntax-highlighted YAML manifest, colorized events and logs |
+| **Right top** | Claude — reads context, gives diagnosis, suggests fixes |
+| **Right bottom** | Your terminal shell — run the suggested kubectl commands here |
+
+### Navigation
+
+| Key | Action |
+|-----|--------|
+| `Click` | Focus that pane |
+| `Ctrl-b o` | Cycle through panes |
+| `Ctrl-b ←/→/↑/↓` | Navigate panes by direction |
+| `Ctrl-b [` | Scroll mode (YAML pane) — `q` to exit |
+| `Shift+drag` | Copy text (terminal native, bypasses tmux) |
+| `Ctrl-b g` | **Return to TUI picker** — select a new resource |
+| `Ctrl-b d` | Detach (session keeps running in background) |
+
+Selecting a new resource via `Ctrl-b g` refreshes all panes in place.
+
+---
+
+## Configuration
+
+Config file is created at `~/.config/corgistration/config` on first install.
+
+```bash
+# Destructive command policy
+#   deny  (default) Claude describes what a destructive action does but never
+#                   writes the command — you run it yourself after verifying
+#   ask             Claude writes the command but marks it ⚠️ DESTRUCTIVE ACTION
+#                   and asks you to confirm first
+#   allow           Claude marks it ⚠️ WARNING but proceeds without confirmation
+CORGI_DESTRUCTIVE="deny"
+
+# Max context lines sent to Claude before truncation
+CORGI_CONTEXT_LINES=500
 ```
--n, --namespace   filter picker to a specific namespace
-    --context     override kubeconfig context
--v, --version     print version and exit
-```
 
-## Customizing the hotkey
+---
 
-Edit `~/.config/k9s/plugins.yaml` and change `shortCut: Shift-A` for any of the three plugin entries (`corgi-pod`, `corgi-deployment`, `corgi-service`).
+## Prerequisites (full list)
 
-Valid K9s shortcut format: `Shift-<letter>`, `Ctrl-<letter>`, or a plain letter key.
+| Tool | Min version | Auto-install |
+|------|-------------|--------------|
+| `tmux` | 3.0 | Yes (`--install-deps`) |
+| `kubectl` | any | Yes |
+| `node` + `claude` CLI | Node 18+ | **No — manual setup required** |
+| `yq` | 4.x | Yes |
+| `go` | 1.21+ | Yes |
+| `bat` | any | Yes (optional, enhances YAML highlighting) |
+
+---
+
+## Customizing the K9s hotkey
+
+Edit `~/.config/k9s/plugins.yaml` and change `shortCut: Shift-A` for any of the plugin entries (`corgi-pod`, `corgi-deployment`, `corgi-service`, `corgi-statefulset`).
+
+---
 
 ## Uninstall
 
 ```bash
+# Remote
 curl -fsSL https://raw.githubusercontent.com/MWest2020/Corgistration/main/uninstall-remote.sh | bash
+
+# From source
+make uninstall
 ```
 
-Or if installed from source: `make uninstall`
+---
 
-Removes scripts from `~/.local/bin/` and corgistration entries from `plugins.yaml`.
+## Security
 
-## Security notes
+- **Secrets blocked**: triggering on a `Secret` resource exits immediately — no credential data is forwarded to Claude
+- **Read-only by default**: only `kubectl get`, `describe`, and `logs` are used — no cluster state is modified
+- **Destructive commands denied by default**: Claude describes actions but does not write destructive commands (`delete`, `drain`, `scale to 0`, etc.)
+- **No credential storage**: uses your ambient `KUBECONFIG` — nothing is cached or persisted
+- **Shell injection protection**: all resource names and namespaces are `printf '%q'`-quoted before passing to tmux/shell
 
-- **Secret resources are blocked**: triggering the hotkey on a `Secret` prints an error and exits. No credential data is forwarded to Claude.
-- **No credential storage**: scripts use your ambient `KUBECONFIG` — nothing is cached or written.
-- **Read-only kubectl calls**: only `get`, `describe`, and `logs` are used. No cluster state is modified.
-- **Shell injection protection**: all resource names and namespaces are `printf '%q'`-quoted before being passed to tmux/shell.
+---
 
-## Running tests
+## Docs
 
-```bash
-make test
-```
+- [Use cases](docs/use-cases.md) — real-world diagnostic scenarios
+- [Configuration reference](docs/configuration.md) — all config options
+- [Keybindings](docs/keybindings.md) — full tmux key reference
 
-The smoke test fakes `kubectl` and `claude`, creates a tmux session, and verifies pane layout and rendering.
+---
 
 ## Known limitations
 
-- **Linux/macOS + tmux only**: no Windows support in v1
-- **Large log volumes**: logs are truncated to the last 100 lines when the context exceeds 500 lines total
-- **No persistent history**: each invocation starts a fresh Claude session
-- **Deployment/Service logs**: not collected (logs belong to Pods; use K9s to navigate to child Pods)
+- Linux/macOS + tmux only (no Windows)
+- Logs truncated to last 100 lines when context exceeds `CORGI_CONTEXT_LINES`
+- Each session starts a fresh Claude conversation (no persistent history)
+- Deployment/Service logs not collected — navigate to child Pods in K9s or picker
