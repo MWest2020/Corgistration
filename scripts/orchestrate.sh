@@ -18,8 +18,9 @@ if [[ -z "$CONTEXT_FILE" || -z "$KIND" || -z "$NAME" || -z "$NAMESPACE" ]]; then
 fi
 
 SESSION="corgistration"
-LEFT_PANE="${SESSION}:0.0"   # YAML / events / logs
-RIGHT_PANE="${SESSION}:0.1"  # Claude
+PANE_YAML="${SESSION}:0.0"    # left        — YAML / events / logs
+PANE_CLAUDE="${SESSION}:0.1"  # right top   — Claude
+PANE_TERM="${SESSION}:0.2"    # right bottom — terminal (run kubectl here)
 
 # Shell-quote all user-derived values to prevent injection via resource name/namespace
 Q_SCRIPT_DIR="$(printf '%q' "${SCRIPT_DIR}")"
@@ -30,67 +31,69 @@ Q_NS="$(printf '%q' "${NAMESPACE}")"
 
 RENDER_CMD="${Q_SCRIPT_DIR}/render.sh ${Q_CONTEXT}"
 INVOKE_CMD="${Q_SCRIPT_DIR}/claude-invoke.sh ${Q_CONTEXT} ${Q_KIND} ${Q_NAME} ${Q_NS}"
+BANNER_CMD="source ${Q_SCRIPT_DIR}/lib.sh && corgi_banner ${Q_KIND} ${Q_NAME} ${Q_NS}"
 
 # ── Apply session options (always, new or reused) ─────────────────────────────
 apply_session_options() {
-  # Mouse: click to focus a pane. Shift+drag = terminal native copy (bypasses tmux).
   tmux set-option -t "$SESSION" -g mouse on
-
-  # Pane border colours so active pane is obvious
   tmux set-option -t "$SESSION" -g pane-active-border-style "fg=colour4"
   tmux set-option -t "$SESSION" -g pane-border-style "fg=colour8"
-
-  # Status bar — always visible at the bottom
   tmux set-option -t "$SESSION" status on
   tmux set-option -t "$SESSION" status-style "bg=colour235,fg=colour250"
-  tmux set-option -t "$SESSION" status-left \
-    "#[fg=colour6,bold] corgistration #[fg=colour8]│ "
+  tmux set-option -t "$SESSION" status-left "#[fg=colour6,bold] corgistration #[fg=colour8]│ "
   tmux set-option -t "$SESSION" status-right \
-    "#[fg=colour3] Ctrl-b o#[fg=colour8]=switch pane  #[fg=colour3]Ctrl-b g#[fg=colour8]=new resource  #[fg=colour3]Shift+drag#[fg=colour8]=copy  #[fg=colour3]Ctrl-b d#[fg=colour8]=detach "
+    "#[fg=colour3]Ctrl-b o#[fg=colour8]=next pane  #[fg=colour3]Ctrl-b g#[fg=colour8]=pick resource  #[fg=colour3]Shift+drag#[fg=colour8]=copy  #[fg=colour3]Ctrl-b d#[fg=colour8]=detach "
   tmux set-option -t "$SESSION" status-right-length 100
 
-  # Ctrl-b g → open picker in a new window; corgi refreshes panes on selection
-  # The picker window exits naturally when corgi is done.
-  tmux bind-key -T prefix g new-window -n "picker" "corgi"
-
-  # Ctrl-b o already cycles panes by default; also bind arrow keys explicitly
+  # Pane navigation
   tmux bind-key -T prefix Left  select-pane -L
   tmux bind-key -T prefix Right select-pane -R
+  tmux bind-key -T prefix Up    select-pane -U
+  tmux bind-key -T prefix Down  select-pane -D
+
+  # Ctrl-b g → open picker; on selection session panes are refreshed
+  tmux bind-key -T prefix g new-window -n "picker" "corgi"
 }
 
 # ── Session management ────────────────────────────────────────────────────────
 if tmux has-session -t "$SESSION" 2>/dev/null; then
-  corgi_log INFO "Reusing existing tmux session: $SESSION"
+  corgi_log INFO "Refreshing existing tmux session: $SESSION"
 
-  # Collapse any extra windows (e.g. leftover picker window)
+  # Close any stray extra windows (e.g. leftover picker)
   while tmux list-windows -t "$SESSION" | grep -qE "^[1-9]:"; do
     tmux kill-window -t "${SESSION}:1" 2>/dev/null || break
   done
 
   apply_session_options
 
-  tmux send-keys -t "$LEFT_PANE"  "clear && ${RENDER_CMD}; exec bash" Enter
-  tmux send-keys -t "$RIGHT_PANE" "clear && ${INVOKE_CMD}" Enter
+  # Respawn panes with new context — kills current process and restarts cleanly
+  tmux respawn-pane -k -t "$PANE_YAML"   "${RENDER_CMD}; exec bash"
+  tmux respawn-pane -k -t "$PANE_CLAUDE" "${BANNER_CMD} && ${INVOKE_CMD}"
+
 else
   corgi_log INFO "Creating new tmux session: $SESSION"
 
-  tmux new-session -d -s "$SESSION" -x 220 -y 50
+  # ── Layout:
+  #   left (55%)       right top (75% of right = ~34% total)
+  #                    right bottom (25% of right = ~11% total)
+
+  # Window 0, pane 0: YAML viewer (left)
+  tmux new-session -d -s "$SESSION" -n "corgi" -x 220 -y 50 \
+    "${RENDER_CMD}; exec bash"
 
   apply_session_options
 
-  # Split: left 55% = context viewer, right 45% = Claude
-  tmux split-window -t "${SESSION}:0" -h -l 45%
+  # Split right: pane 1 = Claude (right, full height initially)
+  tmux split-window -t "${SESSION}:0.0" -h -l 45% \
+    "${BANNER_CMD} && ${INVOKE_CMD}"
 
-  # Left pane: render YAML then stay alive as a shell (Ctrl-b [ to scroll)
-  tmux send-keys -t "$LEFT_PANE" "${RENDER_CMD}; exec bash" Enter
-
-  # Right pane: corgi banner then Claude
-  tmux send-keys -t "$RIGHT_PANE" \
-    "source ${Q_SCRIPT_DIR}/lib.sh && corgi_banner ${Q_KIND} ${Q_NAME} ${Q_NS} && ${INVOKE_CMD}" Enter
+  # Split pane 1 vertically: pane 2 = terminal (bottom right, 25% height)
+  tmux split-window -t "${SESSION}:0.1" -v -l 25% \
+    "bash"
 fi
 
-# ── Attach focused on Claude (right pane) ─────────────────────────────────────
-tmux select-pane -t "$RIGHT_PANE"
+# ── Focus Claude pane ─────────────────────────────────────────────────────────
+tmux select-pane -t "$PANE_CLAUDE"
 
 if [[ -n "${TMUX:-}" ]]; then
   tmux switch-client -t "$SESSION"

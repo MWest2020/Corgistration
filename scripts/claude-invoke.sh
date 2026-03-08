@@ -64,8 +64,9 @@ case "$CORGI_DESTRUCTIVE" in
 ⚠️  DESTRUCTIVE ACTION — double-check before running"
     ;;
   deny)
-    DESTRUCTIVE_INSTRUCTION="Do NOT suggest destructive commands (delete, scale to 0, drain, cordon, force-kill, patch --force).
-If a destructive action is the correct fix, describe what it would do and tell the user to run it manually after verifying."
+    DESTRUCTIVE_INSTRUCTION="Do NOT write destructive commands (delete, scale to 0, drain, cordon, force-kill, patch --force) in your responses.
+If a destructive action is the correct fix: describe exactly what it does and why, then tell the user to run it themselves in the terminal after verifying.
+You may show read-only commands (get, describe, logs, top) freely."
     ;;
   ask|*)
     DESTRUCTIVE_INSTRUCTION="When a destructive command (delete, scale to 0, drain, cordon, force-kill, patch --force) is the right fix:
