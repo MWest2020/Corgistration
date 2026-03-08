@@ -3,6 +3,7 @@ package picker
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,14 +32,31 @@ type Resource struct {
 	Status    string
 }
 
+// kindOrder defines display order for kind grouping.
+var kindOrder = map[string]int{
+	"Deployment":  0,
+	"StatefulSet": 1,
+	"Pod":         2,
+	"Service":     3,
+}
+
+func kindRank(k string) int {
+	if r, ok := kindOrder[k]; ok {
+		return r
+	}
+	return 99
+}
+
 // styles
 var (
-	stylePod        = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)   // green
-	styleDeployment = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)   // cyan
-	styleService    = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)   // yellow
+	stylePod        = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)  // green
+	styleDeployment = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)  // cyan
+	styleService    = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)  // yellow
+	styleStateful   = lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true)  // magenta
 	styleSelected   = lipgloss.NewStyle().Background(lipgloss.Color("4")).Foreground(lipgloss.Color("15")).Bold(true)
 	styleDim        = lipgloss.NewStyle().Faint(true)
 	styleError      = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styleHeader     = lipgloss.NewStyle().Foreground(lipgloss.Color("8")).Bold(true)
 
 	dotGreen  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("●")
 	dotYellow = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("●")
@@ -94,6 +113,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.resources = msg.resources
 		m.filtered = msg.resources
+		m.cursor = 0
 		return m, nil
 
 	case errMsg:
@@ -109,7 +129,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
-		// Filter mode captures all keys for the text input
 		if m.filterMode {
 			switch msg.String() {
 			case "esc", "/":
@@ -197,7 +216,17 @@ func (m model) View() string {
 		b.WriteString(styleDim.Render("  no resources found\n"))
 	}
 
+	var lastKind string
 	for i, r := range m.filtered {
+		// Section header when kind changes
+		if r.Kind != lastKind {
+			if lastKind != "" {
+				b.WriteString("\n")
+			}
+			b.WriteString(styleHeader.Render(fmt.Sprintf("  ── %s ", strings.ToUpper(r.Kind)+"S")) + "\n")
+			lastKind = r.Kind
+		}
+
 		dot := statusDot(r)
 		kindLabel := kindStyle(r.Kind).Render(fmt.Sprintf("%-12s", r.Kind))
 		if i == m.cursor {
@@ -226,6 +255,8 @@ func kindStyle(kind string) lipgloss.Style {
 		return stylePod
 	case "deployment":
 		return styleDeployment
+	case "statefulset":
+		return styleStateful
 	default:
 		return styleService
 	}
@@ -273,16 +304,54 @@ func loadResources(cfg Config) ([]Resource, error) {
 		return nil, fmt.Errorf("build client: %w", err)
 	}
 
-	ns := cfg.Namespace // empty = all namespaces
+	ns := cfg.Namespace
 
 	var (
 		resources []Resource
-		mu        sync.Mutex // protect resources slice from concurrent writes
+		mu        sync.Mutex
 		wg        sync.WaitGroup
 		fetchErr  error
 	)
 
-	wg.Add(3)
+	wg.Add(4)
+
+	go func() {
+		defer wg.Done()
+		deps, err := cs.AppsV1().Deployments(ns).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return
+		}
+		mu.Lock()
+		for _, d := range deps.Items {
+			status := fmt.Sprintf("%d/%d ready", d.Status.ReadyReplicas, d.Status.Replicas)
+			resources = append(resources, Resource{
+				Kind:      "Deployment",
+				Name:      d.Name,
+				Namespace: d.Namespace,
+				Status:    status,
+			})
+		}
+		mu.Unlock()
+	}()
+
+	go func() {
+		defer wg.Done()
+		sets, err := cs.AppsV1().StatefulSets(ns).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return
+		}
+		mu.Lock()
+		for _, s := range sets.Items {
+			status := fmt.Sprintf("%d/%d ready", s.Status.ReadyReplicas, s.Status.Replicas)
+			resources = append(resources, Resource{
+				Kind:      "StatefulSet",
+				Name:      s.Name,
+				Namespace: s.Namespace,
+				Status:    status,
+			})
+		}
+		mu.Unlock()
+	}()
 
 	go func() {
 		defer wg.Done()
@@ -300,25 +369,6 @@ func loadResources(cfg Config) ([]Resource, error) {
 				Name:      p.Name,
 				Namespace: p.Namespace,
 				Status:    podStatus(p),
-			})
-		}
-		mu.Unlock()
-	}()
-
-	go func() {
-		defer wg.Done()
-		deps, err := cs.AppsV1().Deployments(ns).List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			return
-		}
-		mu.Lock()
-		for _, d := range deps.Items {
-			status := fmt.Sprintf("%d/%d ready", d.Status.ReadyReplicas, d.Status.Replicas)
-			resources = append(resources, Resource{
-				Kind:      "Deployment",
-				Name:      d.Name,
-				Namespace: d.Namespace,
-				Status:    status,
 			})
 		}
 		mu.Unlock()
@@ -348,6 +398,18 @@ func loadResources(cfg Config) ([]Resource, error) {
 		return nil, fetchErr
 	}
 
+	// Sort by kind rank then name so list is grouped and stable
+	sort.Slice(resources, func(i, j int) bool {
+		ri, rj := resources[i], resources[j]
+		if kindRank(ri.Kind) != kindRank(rj.Kind) {
+			return kindRank(ri.Kind) < kindRank(rj.Kind)
+		}
+		if ri.Namespace != rj.Namespace {
+			return ri.Namespace < rj.Namespace
+		}
+		return ri.Name < rj.Name
+	})
+
 	return resources, nil
 }
 
@@ -359,3 +421,6 @@ func podStatus(p corev1.Pod) string {
 	}
 	return string(p.Status.Phase)
 }
+
+// satisfy unused import (appsv1 used via StatefulSet/Deployment above indirectly through client-go)
+var _ = appsv1.Deployment{}

@@ -54,23 +54,19 @@ if (( CONTEXT_LINES > MAX_LINES )); then
 fi
 
 # ── System prompt ─────────────────────────────────────────────────────────────
-SYSTEM_PROMPT="You are an expert Kubernetes platform engineer and SRE with deep diagnostics experience.
-You have been given the full context for a Kubernetes resource: its YAML manifest, recent events, and logs.
-Your job is to:
-1. Identify any problems, anomalies, or unhealthy conditions visible in the provided context.
-2. Explain the root cause clearly and concisely.
-3. Propose a concrete remediation — a kubectl command, a manifest patch, or a clear next investigative step.
-Keep your initial response focused and actionable. The user can ask follow-up questions."
+SYSTEM_PROMPT="You are an expert Kubernetes platform engineer and SRE.
+The user is investigating a Kubernetes resource. Context (YAML, events, logs) is available.
+Be concise. Lead with the most likely problem and a single actionable fix.
+Do not repeat the manifest back. Ask clarifying questions if needed."
 
 # ── Initial user message ──────────────────────────────────────────────────────
 CONTEXT_CONTENT="$(cat "$CONTEXT_FILE")"
-INITIAL_PROMPT="Please diagnose the following Kubernetes ${KIND}.
-
-Resource: ${KIND}/${NAME}
-Namespace: ${NAMESPACE}
+INITIAL_PROMPT="Diagnose: ${KIND}/${NAME} in namespace ${NAMESPACE}
 ${TRUNCATION_NOTICE}
 
-${CONTEXT_CONTENT}"
+${CONTEXT_CONTENT}
+
+Respond with: (1) status summary in one line, (2) most likely issue, (3) recommended fix or next step."
 
 # ── Launch Claude in interactive mode ────────────────────────────────────────
 exec claude \
