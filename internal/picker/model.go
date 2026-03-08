@@ -35,7 +35,7 @@ var (
 	stylePod        = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)   // green
 	styleDeployment = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)   // cyan
 	styleService    = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)   // yellow
-	styleSelected   = lipgloss.NewStyle().Background(lipgloss.Color("8")).Bold(true)
+	styleSelected   = lipgloss.NewStyle().Background(lipgloss.Color("4")).Foreground(lipgloss.Color("15")).Bold(true)
 	styleDim        = lipgloss.NewStyle().Faint(true)
 	styleError      = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 
@@ -200,10 +200,11 @@ func (m model) View() string {
 	for i, r := range m.filtered {
 		dot := statusDot(r)
 		kindLabel := kindStyle(r.Kind).Render(fmt.Sprintf("%-12s", r.Kind))
-		row := fmt.Sprintf("  %s %-40s %-20s %s", kindLabel, r.Name, r.Namespace, dot+" "+r.Status)
 		if i == m.cursor {
+			row := fmt.Sprintf("► %s %-40s %-20s %s", kindLabel, r.Name, r.Namespace, dot+" "+r.Status)
 			b.WriteString(styleSelected.Render(row))
 		} else {
+			row := fmt.Sprintf("  %s %-40s %-20s %s", kindLabel, r.Name, r.Namespace, dot+" "+r.Status)
 			b.WriteString(row)
 		}
 		b.WriteString("\n")
