@@ -51,8 +51,9 @@ apply_session_options() {
   tmux bind-key -T prefix Up    select-pane -U
   tmux bind-key -T prefix Down  select-pane -D
 
-  # Ctrl-b g → open picker; on selection session panes are refreshed
-  tmux bind-key -T prefix g new-window -n "picker" "corgi"
+  # Ctrl-b g → open picker; use full path so tmux window inherits correct PATH
+  CORGI_BIN="${HOME}/.local/bin/corgi"
+  tmux bind-key -T prefix g new-window -n "picker" "${CORGI_BIN}"
 }
 
 # ── Session management ────────────────────────────────────────────────────────
@@ -76,7 +77,10 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
   fi
 
   # Respawn all panes cleanly with new context
-  tmux respawn-pane -k -t "$PANE_YAML"   "${RENDER_CMD}; exec bash"
+  tmux set-option -p -t "$PANE_YAML"   remain-on-exit on
+  tmux set-option -p -t "$PANE_CLAUDE" remain-on-exit off
+  tmux set-option -p -t "$PANE_TERM"   remain-on-exit off
+  tmux respawn-pane -k -t "$PANE_YAML"   "${RENDER_CMD}"
   tmux respawn-pane -k -t "$PANE_CLAUDE" "${BANNER_CMD} && ${INVOKE_CMD}"
   tmux respawn-pane -k -t "$PANE_TERM"   "bash"
 
@@ -87,19 +91,26 @@ else
   #   left (55%)       right top (75% of right = ~34% total)
   #                    right bottom (25% of right = ~11% total)
 
-  # Window 0, pane 0: YAML viewer (left)
+  # Window 0, pane 0: YAML viewer (left) — stays visible after render finishes
   tmux new-session -d -s "$SESSION" -n "corgi" -x 220 -y 50 \
-    "${RENDER_CMD}; exec bash"
+    "${RENDER_CMD}"
 
   apply_session_options
 
-  # Split right: pane 1 = Claude (right, full height initially)
+  # remain-on-exit for pane 0 only (YAML viewer stays after render exits)
+  tmux set-option -t "${SESSION}:0" remain-on-exit on
+
+  # Split right: pane 1 = Claude
   tmux split-window -t "${SESSION}:0.0" -h -l 45% \
     "${BANNER_CMD} && ${INVOKE_CMD}"
 
   # Split pane 1 vertically: pane 2 = terminal (bottom right, 25% height)
   tmux split-window -t "${SESSION}:0.1" -v -l 25% \
     "bash"
+
+  # remain-on-exit only applies to pane 0 — turn it off for panes 1 and 2
+  tmux set-option -p -t "${SESSION}:0.1" remain-on-exit off
+  tmux set-option -p -t "${SESSION}:0.2" remain-on-exit off
 fi
 
 # ── Focus Claude pane ─────────────────────────────────────────────────────────
