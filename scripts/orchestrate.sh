@@ -31,13 +31,44 @@ Q_NS="$(printf '%q' "${NAMESPACE}")"
 RENDER_CMD="${Q_SCRIPT_DIR}/render.sh ${Q_CONTEXT}"
 INVOKE_CMD="${Q_SCRIPT_DIR}/claude-invoke.sh ${Q_CONTEXT} ${Q_KIND} ${Q_NAME} ${Q_NS}"
 
+# ── Apply session options (always, new or reused) ─────────────────────────────
+apply_session_options() {
+  # Mouse: click to focus a pane. Shift+drag = terminal native copy (bypasses tmux).
+  tmux set-option -t "$SESSION" -g mouse on
+
+  # Pane border colours so active pane is obvious
+  tmux set-option -t "$SESSION" -g pane-active-border-style "fg=colour4"
+  tmux set-option -t "$SESSION" -g pane-border-style "fg=colour8"
+
+  # Status bar — always visible at the bottom
+  tmux set-option -t "$SESSION" status on
+  tmux set-option -t "$SESSION" status-style "bg=colour235,fg=colour250"
+  tmux set-option -t "$SESSION" status-left \
+    "#[fg=colour6,bold] corgistration #[fg=colour8]│ "
+  tmux set-option -t "$SESSION" status-right \
+    "#[fg=colour3] Ctrl-b o#[fg=colour8]=switch pane  #[fg=colour3]Ctrl-b g#[fg=colour8]=new resource  #[fg=colour3]Shift+drag#[fg=colour8]=copy  #[fg=colour3]Ctrl-b d#[fg=colour8]=detach "
+  tmux set-option -t "$SESSION" status-right-length 100
+
+  # Ctrl-b g → open picker in a temporary window; on selection window closes
+  # and the session panes are refreshed automatically by corgi itself.
+  tmux bind-key -T prefix g new-window -n "picker" "corgi; tmux kill-window"
+
+  # Ctrl-b o already cycles panes by default; also bind arrow keys explicitly
+  tmux bind-key -T prefix Left  select-pane -L
+  tmux bind-key -T prefix Right select-pane -R
+}
+
 # ── Session management ────────────────────────────────────────────────────────
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   corgi_log INFO "Reusing existing tmux session: $SESSION"
-  # Collapse any extra windows back to single-window layout if needed
-  while tmux list-windows -t "$SESSION" | grep -q "^1:"; do
+
+  # Collapse any extra windows (e.g. leftover picker window)
+  while tmux list-windows -t "$SESSION" | grep -qE "^[1-9]:"; do
     tmux kill-window -t "${SESSION}:1" 2>/dev/null || break
   done
+
+  apply_session_options
+
   tmux send-keys -t "$LEFT_PANE"  "clear && ${RENDER_CMD}" Enter
   tmux send-keys -t "$RIGHT_PANE" "clear && ${INVOKE_CMD}" Enter
 else
@@ -45,18 +76,12 @@ else
 
   tmux new-session -d -s "$SESSION" -x 220 -y 50
 
-  # Mouse mode: click to focus a pane, then select text freely.
-  # Hold Shift while dragging to bypass tmux and use terminal native selection.
-  tmux set-option -t "$SESSION" -g mouse on
-
-  # Status bar hint
-  tmux set-option -t "$SESSION" status-right \
-    "#[fg=colour8] click=focus pane | Shift+drag=copy text | Ctrl-b [ =copy mode"
-
-  # Keep pane alive if render exits
+  # Keep pane alive if render exits so YAML stays visible
   tmux set-option -t "${SESSION}:0" remain-on-exit on
 
-  # Split: left 55% = context, right 45% = Claude
+  apply_session_options
+
+  # Split: left 55% = context viewer, right 45% = Claude
   tmux split-window -t "${SESSION}:0" -h -l 45%
 
   # Left pane: YAML / events / logs
@@ -67,7 +92,7 @@ else
     "source ${Q_SCRIPT_DIR}/lib.sh && corgi_banner ${Q_KIND} ${Q_NAME} ${Q_NS} && ${INVOKE_CMD}" Enter
 fi
 
-# ── Attach focused on right pane (Claude) ─────────────────────────────────────
+# ── Attach focused on Claude (right pane) ─────────────────────────────────────
 tmux select-pane -t "$RIGHT_PANE"
 
 if [[ -n "${TMUX:-}" ]]; then
