@@ -107,7 +107,7 @@ tmux select-window -t "${SESSION}:0"
 tmux select-pane   -t "$PANE_CLAUDE"
 
 if [[ -n "${TMUX:-}" ]]; then
-  tmux switch-client -t "${SESSION}:0"
+  tmux switch-client -t "$SESSION"
 else
-  tmux attach-session -t "${SESSION}:0"
+  tmux attach-session -t "$SESSION"
 fi
