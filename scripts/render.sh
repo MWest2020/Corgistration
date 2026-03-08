@@ -98,13 +98,6 @@ render_to_stdout() {
   fi
 }
 
-# ── Pager if output exceeds terminal height ───────────────────────────────────
-TERM_LINES="${LINES:-$(tput lines 2>/dev/null || echo 40)}"
-OUTPUT="$(render_to_stdout)"
-OUTPUT_LINES="$(printf '%s\n' "$OUTPUT" | wc -l)"
-
-if (( OUTPUT_LINES > TERM_LINES )); then
-  printf '%s\n' "$OUTPUT" | less -R
-else
-  printf '%s\n' "$OUTPUT"
-fi
+# ── Print output — tmux scrollback handles paging (Ctrl-b [ to scroll) ───────
+render_to_stdout
+printf '\n\033[2m  ─── end of context ─── Ctrl-b [ to scroll  │  Ctrl-b g = new resource ───\033[0m\n'

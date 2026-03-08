@@ -49,9 +49,9 @@ apply_session_options() {
     "#[fg=colour3] Ctrl-b o#[fg=colour8]=switch pane  #[fg=colour3]Ctrl-b g#[fg=colour8]=new resource  #[fg=colour3]Shift+drag#[fg=colour8]=copy  #[fg=colour3]Ctrl-b d#[fg=colour8]=detach "
   tmux set-option -t "$SESSION" status-right-length 100
 
-  # Ctrl-b g → open picker in a temporary window; on selection window closes
-  # and the session panes are refreshed automatically by corgi itself.
-  tmux bind-key -T prefix g new-window -n "picker" "corgi; tmux kill-window"
+  # Ctrl-b g → open picker in a new window; corgi refreshes panes on selection
+  # The picker window exits naturally when corgi is done.
+  tmux bind-key -T prefix g new-window -n "picker" "corgi"
 
   # Ctrl-b o already cycles panes by default; also bind arrow keys explicitly
   tmux bind-key -T prefix Left  select-pane -L
@@ -69,23 +69,20 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 
   apply_session_options
 
-  tmux send-keys -t "$LEFT_PANE"  "clear && ${RENDER_CMD}" Enter
+  tmux send-keys -t "$LEFT_PANE"  "clear && ${RENDER_CMD}; exec bash" Enter
   tmux send-keys -t "$RIGHT_PANE" "clear && ${INVOKE_CMD}" Enter
 else
   corgi_log INFO "Creating new tmux session: $SESSION"
 
   tmux new-session -d -s "$SESSION" -x 220 -y 50
 
-  # Keep pane alive if render exits so YAML stays visible
-  tmux set-option -t "${SESSION}:0" remain-on-exit on
-
   apply_session_options
 
   # Split: left 55% = context viewer, right 45% = Claude
   tmux split-window -t "${SESSION}:0" -h -l 45%
 
-  # Left pane: YAML / events / logs
-  tmux send-keys -t "$LEFT_PANE" "${RENDER_CMD}" Enter
+  # Left pane: render YAML then stay alive as a shell (Ctrl-b [ to scroll)
+  tmux send-keys -t "$LEFT_PANE" "${RENDER_CMD}; exec bash" Enter
 
   # Right pane: corgi banner then Claude
   tmux send-keys -t "$RIGHT_PANE" \
