@@ -18,11 +18,10 @@ if [[ -z "$CONTEXT_FILE" || -z "$KIND" || -z "$NAME" || -z "$NAMESPACE" ]]; then
 fi
 
 SESSION="corgistration"
-LEFT_PANE="${SESSION}:0.0"
-RIGHT_PANE="${SESSION}:0.1"
+WIN_CONTEXT="${SESSION}:0"   # window 0 — YAML / events / logs viewer
+WIN_CLAUDE="${SESSION}:1"    # window 1 — Claude interactive (full width, copyable)
 
 # Shell-quote all user-derived values to prevent injection via resource name/namespace
-# printf '%q' produces bash-safe quoting for each token
 Q_SCRIPT_DIR="$(printf '%q' "${SCRIPT_DIR}")"
 Q_CONTEXT="$(printf '%q' "${CONTEXT_FILE}")"
 Q_KIND="$(printf '%q' "${KIND}")"
@@ -35,35 +34,24 @@ INVOKE_CMD="${Q_SCRIPT_DIR}/claude-invoke.sh ${Q_CONTEXT} ${Q_KIND} ${Q_NAME} ${
 # ── Session management ────────────────────────────────────────────────────────
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   corgi_log INFO "Reusing existing tmux session: $SESSION"
-  # Update pane contents with new context
-  tmux send-keys -t "$LEFT_PANE"  "clear && ${RENDER_CMD}" Enter
-  tmux send-keys -t "$RIGHT_PANE" "clear && ${INVOKE_CMD}" Enter
+  tmux send-keys -t "${WIN_CONTEXT}" "clear && ${RENDER_CMD}" Enter
+  tmux send-keys -t "${WIN_CLAUDE}"  "clear && ${INVOKE_CMD}" Enter
 else
   corgi_log INFO "Creating new tmux session: $SESSION"
-  # Create detached session with first window
-  tmux new-session -d -s "$SESSION" -x 220 -y 50
 
-  # Set left pane to remain on exit so a render crash doesn't kill the session
-  tmux set-option -t "${SESSION}:0" remain-on-exit on
+  # Window 0 — context viewer
+  tmux new-session -d -s "$SESSION" -n "context" -x 220 -y 50
+  tmux set-option -t "${WIN_CONTEXT}" remain-on-exit on
+  tmux send-keys -t "${WIN_CONTEXT}" "${RENDER_CMD}" Enter
 
-  # Split horizontally: left=55%, right=45%
-  tmux split-window -t "${SESSION}:0" -h -l 45%
-
-  # Show ASCII corgi banner in right pane before Claude loads
-  tmux send-keys -t "$RIGHT_PANE" "source ${Q_SCRIPT_DIR}/lib.sh && corgi_banner ${Q_KIND} ${Q_NAME} ${Q_NS}" Enter
-
-  # Launch renderer in left pane (pane 0)
-  tmux send-keys -t "$LEFT_PANE"  "${RENDER_CMD}" Enter
-
-  # Launch claude invoker in right pane (pane 1) — banner already visible, Claude follows
-  tmux send-keys -t "$RIGHT_PANE" "${INVOKE_CMD}" Enter
+  # Window 1 — Claude (full width so copy mode works cleanly)
+  tmux new-window -t "$SESSION" -n "claude"
+  tmux send-keys -t "${WIN_CLAUDE}" "source ${Q_SCRIPT_DIR}/lib.sh && corgi_banner ${Q_KIND} ${Q_NAME} ${Q_NS} && ${INVOKE_CMD}" Enter
 fi
 
-# ── Attach or switch to session ───────────────────────────────────────────────
+# ── Attach to window 1 (Claude) so user lands in the interactive pane ─────────
 if [[ -n "${TMUX:-}" ]]; then
-  # Already inside tmux — switch client
-  tmux switch-client -t "$SESSION"
+  tmux switch-client -t "${WIN_CLAUDE}"
 else
-  # Outside tmux — attach
-  tmux attach-session -t "$SESSION"
+  tmux attach-session -t "${WIN_CLAUDE}"
 fi
