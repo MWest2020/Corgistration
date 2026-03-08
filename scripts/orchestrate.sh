@@ -34,6 +34,12 @@ INVOKE_CMD="${Q_SCRIPT_DIR}/claude-invoke.sh ${Q_CONTEXT} ${Q_KIND} ${Q_NAME} ${
 # ── Session management ────────────────────────────────────────────────────────
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   corgi_log INFO "Reusing existing tmux session: $SESSION"
+  # Ensure window 0 exists and has the right name
+  tmux rename-window -t "${SESSION}:0" "context" 2>/dev/null || true
+  # Create window 1 if it doesn't exist yet (e.g. session created by old layout)
+  if ! tmux list-windows -t "$SESSION" | grep -q "^1:"; then
+    tmux new-window -t "$SESSION" -n "claude"
+  fi
   tmux send-keys -t "${WIN_CONTEXT}" "clear && ${RENDER_CMD}" Enter
   tmux send-keys -t "${WIN_CLAUDE}"  "clear && ${INVOKE_CMD}" Enter
 else
