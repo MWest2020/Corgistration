@@ -204,6 +204,7 @@ make uninstall
 - [Use cases](docs/use-cases.md) — real-world diagnostic scenarios
 - [Configuration reference](docs/configuration.md) — all config options
 - [Keybindings](docs/keybindings.md) — full tmux key reference
+- [kubectl colorizer](docs/colorizer.md) — syntax highlighting for kubectl commands in Claude output
 
 ---
 

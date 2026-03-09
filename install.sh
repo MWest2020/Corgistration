@@ -194,6 +194,14 @@ else
   fi
 fi
 
+# ── kubectl colorizer ─────────────────────────────────────────────────────────
+info "Setting up kubectl colorizer…"
+if command -v python3 &>/dev/null; then
+  bash "${SCRIPT_DIR}/scripts/setup_colorize.sh"
+else
+  warn "python3 not found — skipping kubectl colorizer setup (optional)"
+fi
+
 # ── PATH check ────────────────────────────────────────────────────────────────
 if ! echo "$PATH" | grep -q "${INSTALL_DIR}"; then
   warn "${INSTALL_DIR} is not in your PATH."
@@ -207,9 +215,10 @@ info ""
 info "Installation complete!"
 info ""
 info "Next steps:"
-info "  1. Restart K9s to pick up the new plugin."
-info "  2. Navigate to a Pod, Deployment, or Service."
-info "  3. Press Shift-A to trigger the diagnostic integration."
+info "  1. Run: source ~/.bashrc   (activates kubectl colorizer)"
+info "  2. Restart K9s to pick up the new plugin."
+info "  3. Navigate to a Pod, Deployment, or Service."
+info "  4. Press Shift-A to trigger the diagnostic integration."
 info "  Or run: corgi   (interactive TUI picker)"
 info ""
 info "To change the hotkey, edit: ${K9S_PLUGINS}"

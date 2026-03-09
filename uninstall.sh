@@ -44,4 +44,27 @@ else
   fi
 fi
 
+# ── Remove kubectl colorizer ─────────────────────────────────────────────────
+COLORIZER="${INSTALL_DIR}/kubectl-colorize"
+if [[ -f "$COLORIZER" ]]; then
+  rm "$COLORIZER"
+  info "Removed ${COLORIZER}"
+fi
+
+MARKER="# corgistration: kubectl colorizer"
+BASHRC="${HOME}/.bashrc"
+if grep -qF "$MARKER" "${BASHRC}" 2>/dev/null; then
+  # Remove the block from MARKER through the closing brace
+  sed -i "/^${MARKER}/,/^}$/d" "${BASHRC}"
+  info "Removed kubectl colorizer block from ${BASHRC}"
+  warn "Run 'source ~/.bashrc' to apply."
+fi
+
+# ── Remove corgi binary ───────────────────────────────────────────────────────
+CORGI_BIN="${INSTALL_DIR}/corgi"
+if [[ -f "$CORGI_BIN" ]]; then
+  rm "$CORGI_BIN"
+  info "Removed ${CORGI_BIN}"
+fi
+
 info "Uninstall complete. Restart K9s to apply changes."
