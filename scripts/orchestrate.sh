@@ -103,11 +103,11 @@ else
 fi
 
 # ── Always land on window 0, Claude pane — even when called from picker window
-tmux select-window -t "${SESSION}:0"
-tmux select-pane   -t "$PANE_CLAUDE"
+tmux select-window -t "${SESSION}:0"    || true
+tmux select-pane   -t "$PANE_CLAUDE"   || true
 
 if [[ -n "${TMUX:-}" ]]; then
-  tmux switch-client -t "$SESSION"
+  exec tmux switch-client -t "$SESSION"
 else
-  tmux attach-session -t "$SESSION"
+  exec tmux attach-session -t "$SESSION"
 fi

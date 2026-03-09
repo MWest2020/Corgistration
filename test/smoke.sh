@@ -62,8 +62,10 @@ else
 fi
 
 # Create session manually (without attach) to test layout
+# Mirrors orchestrate.sh: left=YAML, right-top=Claude, right-bottom=terminal
 tmux new-session -d -s "$SESSION" -x 220 -y 50
-tmux split-window -t "${SESSION}:0" -h -l 45%
+tmux split-window -t "${SESSION}:0.0" -h -l 45%
+tmux split-window -t "${SESSION}:0.1" -v -l 25%
 
 # Assert session exists
 if tmux has-session -t "$SESSION" 2>/dev/null; then
@@ -72,12 +74,12 @@ else
   fail "tmux session '$SESSION' not found"
 fi
 
-# Assert two panes
+# Assert three panes
 PANE_COUNT="$(tmux list-panes -t "$SESSION" | wc -l | tr -d ' ')"
-if [[ "$PANE_COUNT" -eq 2 ]]; then
-  pass "tmux session has 2 panes (got: $PANE_COUNT)"
+if [[ "$PANE_COUNT" -eq 3 ]]; then
+  pass "tmux session has 3 panes (got: $PANE_COUNT)"
 else
-  fail "expected 2 panes, got: $PANE_COUNT"
+  fail "expected 3 panes, got: $PANE_COUNT"
 fi
 
 # Assert render.sh produces ANSI output from fixture
