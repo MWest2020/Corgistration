@@ -79,7 +79,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
   tmux set-option -p -t "$PANE_TERM"   remain-on-exit off
   tmux respawn-pane -k -t "$PANE_YAML"   "${RENDER_CMD}"
   tmux respawn-pane -k -t "$PANE_CLAUDE" "${BANNER_CMD} && ${INVOKE_CMD}"
-  tmux respawn-pane -k -t "$PANE_TERM"   "bash"
+  tmux respawn-pane -k -t "$PANE_TERM"   "bash --rcfile <(cat ~/.bashrc; echo 'printf \"\\033[0;36m[corgi]\\033[0m Type \\033[1mcorgi\\033[0m to pick a new resource  |  \\033[1mCtrl-b r\\033[0m from here  |  \\033[1mCtrl-b q\\033[0m to quit\\n\"')"
 
 else
   corgi_log INFO "Creating new tmux session: $SESSION"
@@ -98,8 +98,9 @@ else
     "${BANNER_CMD} && ${INVOKE_CMD}"
 
   # Pane 2: terminal shell (right bottom, 25% height)
+  # Start bash with a hint so users know how to return to picker
   tmux split-window -t "${SESSION}:0.1" -v -l 25% \
-    "bash"
+    "bash --rcfile <(cat ~/.bashrc; echo 'printf \"\\033[0;36m[corgi]\\033[0m Type \\033[1mcorgi\\033[0m to pick a new resource  |  \\033[1mCtrl-b r\\033[0m from here  |  \\033[1mCtrl-b q\\033[0m to quit\\n\"')"
 fi
 
 # ── Always land on window 0, Claude pane — even when called from picker window
